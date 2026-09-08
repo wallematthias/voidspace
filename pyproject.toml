@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voidspace"
+version = "0.1.0"
+description = "Spacing-aware voidspace analysis for HR-pQCT segmentations"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "Matthias Walle"}]
+license = "MIT"
+dependencies = [
+  "numpy>=1.26,<3.0",
+  "scipy",
+  "SimpleITK",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+voidspace = "voidspace.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
