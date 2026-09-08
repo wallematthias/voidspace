@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Mapping
 
 import numpy as np
@@ -70,3 +71,19 @@ class VoidspaceChangeMetrics:
     net_change_volume_mm3: float
     metadata: Mapping[str, object] = field(default_factory=dict)
 
+
+@dataclass(frozen=True)
+class VoidspaceRunResult:
+    large_mask_path: Path
+    all_mask_path: Path
+    measurements_path: Path
+    metrics: VoidspaceMetrics
+
+
+@dataclass(frozen=True)
+class VoidspaceCompareResult:
+    stable_mask_path: Path
+    expanded_mask_path: Path
+    contracted_mask_path: Path
+    measurements_path: Path
+    metrics: VoidspaceChangeMetrics

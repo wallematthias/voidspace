@@ -17,7 +17,7 @@ def test_measure_voidspace_reports_volume_ratio_and_count():
     assert metrics.component_count == 2
 
 
-def test_measure_voidspace_applies_analysis_mask_after_voidspace_computation():
+def test_measure_voidspace_applies_mask_to_measurement_domain():
     void = np.zeros((4, 4, 4), dtype=bool)
     total = np.ones_like(void, dtype=bool)
     common = np.zeros_like(void, dtype=bool)
@@ -25,10 +25,8 @@ def test_measure_voidspace_applies_analysis_mask_after_voidspace_computation():
     void[0, 0, 0] = True
     void[3, 3, 3] = True
 
-    metrics = measure_voidspace(void, total, (1.0, 1.0, 1.0), analysis_mask=common)
+    metrics = measure_voidspace(void, total, (1.0, 1.0, 1.0), mask=common)
 
     assert metrics.volume_mm3 == 1.0
     assert metrics.total_volume_mm3 == 32.0
     assert metrics.vstv_percent == 3.125
-    assert metrics.metadata["analysis_masked"] is True
-

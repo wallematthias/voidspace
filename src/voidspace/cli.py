@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Sequence
 
 from voidspace.models import VoidspaceParameters
-from voidspace.workflows import run_voidspace_case, run_voidspace_change_case
+from voidspace.workflows import compare, run_case
 
 
 def _parameters_from_args(args: argparse.Namespace) -> VoidspaceParameters:
@@ -54,14 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_case = subparsers.add_parser("run-case", help="Segment and measure one prepared scan.")
     run_case.add_argument("--segmentation", type=Path, required=True)
-    run_case.add_argument("--periosteal-mask", type=Path)
-    run_case.add_argument("--analysis-mask", type=Path)
+    run_case.add_argument(
+        "--mask",
+        type=Path,
+        help="Optional analysis-domain mask. Combine periosteal/common-region masks before passing.",
+    )
     run_case.add_argument("--output-dir", type=Path, required=True)
-    run_case.add_argument("--subject", default="")
-    run_case.add_argument("--session", default="")
-    run_case.add_argument("--site", default="")
-    run_case.add_argument("--space", default="native")
-    run_case.add_argument("--reference-session", default="")
     run_case.add_argument("--force", action="store_true")
     _add_parameter_arguments(run_case)
     run_case.set_defaults(func=_cmd_run_case)
@@ -69,12 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
     compare = subparsers.add_parser("compare", help="Compare already aligned voidspace masks.")
     compare.add_argument("--baseline-void", type=Path, required=True)
     compare.add_argument("--followup-void", type=Path, required=True)
-    compare.add_argument("--analysis-mask", type=Path)
+    compare.add_argument(
+        "--mask",
+        type=Path,
+        help="Optional analysis-domain mask aligned with both voidspace masks.",
+    )
     compare.add_argument("--output-dir", type=Path, required=True)
-    compare.add_argument("--subject", default="")
-    compare.add_argument("--site", default="")
-    compare.add_argument("--baseline-session", default="")
-    compare.add_argument("--followup-session", default="")
     compare.add_argument("--force", action="store_true")
     compare.set_defaults(func=_cmd_compare)
 
@@ -82,16 +80,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_run_case(args: argparse.Namespace) -> int:
-    run_voidspace_case(
+    run_case(
         segmentation_path=args.segmentation,
-        periosteal_mask_path=args.periosteal_mask,
-        analysis_mask_path=args.analysis_mask,
+        mask_path=args.mask,
         output_dir=args.output_dir,
-        subject_id=args.subject,
-        session_id=args.session,
-        site=args.site,
-        space=args.space,
-        reference_session_id=args.reference_session,
         parameters=_parameters_from_args(args),
         force=args.force,
     )
@@ -99,15 +91,11 @@ def _cmd_run_case(args: argparse.Namespace) -> int:
 
 
 def _cmd_compare(args: argparse.Namespace) -> int:
-    run_voidspace_change_case(
+    compare(
         baseline_void_path=args.baseline_void,
         followup_void_path=args.followup_void,
-        analysis_mask_path=args.analysis_mask,
+        mask_path=args.mask,
         output_dir=args.output_dir,
-        subject_id=args.subject,
-        site=args.site,
-        baseline_session_id=args.baseline_session,
-        followup_session_id=args.followup_session,
         force=args.force,
     )
     return 0

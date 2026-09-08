@@ -13,17 +13,17 @@ nonzero, and written back as native binary AIM masks using the input geometry.
 ## Workflows
 
 - Cross-sectional: pass a segmented bone image.
-- Masked/common-region: pass a segmented bone image and an analysis mask. The
-  full voidspace mask is computed first, then the mask is applied to the
-  measurements.
+- Masked/common-region: pass a segmented bone image and a mask. If both a
+  periosteal contour and a common region are needed, combine them before calling
+  `voidspace`.
 - Registered: pass an already registered segmentation and optional registered
-  analysis mask.
+  mask.
 - Dynamic change: pass already aligned baseline and follow-up voidspace masks.
 
 When no periosteal mask is supplied, the segmentation-only workflow estimates
 the analysis domain from the closed segmentation by excluding background
-connected to the image border. Supplying an explicit periosteal/common-region
-mask remains preferred when that contour is available.
+connected to the image border. Supplying an explicit mask remains preferred
+when that contour is available.
 
 ## Algorithm
 
@@ -54,21 +54,43 @@ image spacing.
 ```bash
 voidspace run-case \
   --segmentation seg.AIM \
-  --analysis-mask common_region.nii.gz \
-  --output-dir derivatives/VoidSpace/sub-S1/site-tibia/ses-1 \
-  --subject S1 \
-  --session 1 \
-  --site tibia
+  --mask analysis_domain.AIM \
+  --output-dir voidspace-out
 ```
 
 ```bash
 voidspace compare \
-  --baseline-void baseline_voidspace_large_mask.nii.gz \
-  --followup-void followup_voidspace_large_mask.nii.gz \
-  --analysis-mask registered_common_region.nii.gz \
-  --output-dir derivatives/VoidSpace/sub-S1/site-tibia/t0-1_t1-2 \
-  --subject S1 \
-  --site tibia \
-  --baseline-session 1 \
-  --followup-session 2
+  --baseline-void baseline_voidspace_large_mask.AIM \
+  --followup-void followup_voidspace_large_mask.AIM \
+  --mask analysis_domain.AIM \
+  --output-dir voidspace-change
+```
+
+`--mask` is optional for both commands. Use `--force` to overwrite existing
+outputs.
+
+## Python
+
+```python
+from voidspace import VoidspaceParameters, run_case
+
+result = run_case(
+    segmentation_path="seg.AIM",
+    mask_path="analysis_domain.AIM",
+    output_dir="voidspace-out",
+    parameters=VoidspaceParameters.xtremectii_defaults(),
+)
+print(result.metrics.volume_mm3)
+```
+
+```python
+from voidspace import compare
+
+result = compare(
+    baseline_void_path="baseline_voidspace_large_mask.AIM",
+    followup_void_path="followup_voidspace_large_mask.AIM",
+    mask_path="analysis_domain.AIM",
+    output_dir="voidspace-change",
+)
+print(result.metrics.net_change_volume_mm3)
 ```

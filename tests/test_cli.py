@@ -2,6 +2,7 @@ import csv
 
 import numpy as np
 import py_aimio
+import pytest
 import SimpleITK as sitk
 
 from voidspace.cli import main
@@ -39,16 +40,10 @@ def test_run_case_cli_writes_masks_and_measurements(tmp_path):
             "run-case",
             "--segmentation",
             str(tmp_path / "seg.nii.gz"),
-            "--analysis-mask",
+            "--mask",
             str(tmp_path / "common.nii.gz"),
             "--output-dir",
             str(tmp_path / "out"),
-            "--subject",
-            "S1",
-            "--session",
-            "1",
-            "--site",
-            "tibia",
             "--min-large-void-volume-mm3",
             "0.0",
             "--boundary-erosion-radius-mm",
@@ -60,12 +55,10 @@ def test_run_case_cli_writes_masks_and_measurements(tmp_path):
     assert rc == 0
     assert (tmp_path / "out" / "voidspace_large_mask.nii.gz").is_file()
     assert (tmp_path / "out" / "voidspace_measurements.csv").is_file()
-    assert (tmp_path / "out" / "voidspace_analysis_masked_measurements.csv").is_file()
-    with (tmp_path / "out" / "voidspace_analysis_masked_measurements.csv").open(
-        newline="", encoding="utf-8"
-    ) as stream:
+    with (tmp_path / "out" / "voidspace_measurements.csv").open(newline="", encoding="utf-8") as stream:
         rows = list(csv.DictReader(stream))
-    assert rows[0]["analysis_masked"] == "True"
+    assert "subject_id" not in rows[0]
+    assert "analysis_masked" not in rows[0]
 
 
 def test_compare_cli_writes_expanded_and_contracted_masks(tmp_path):
@@ -85,14 +78,6 @@ def test_compare_cli_writes_expanded_and_contracted_masks(tmp_path):
             str(tmp_path / "followup.nii.gz"),
             "--output-dir",
             str(tmp_path / "change"),
-            "--subject",
-            "S1",
-            "--site",
-            "tibia",
-            "--baseline-session",
-            "1",
-            "--followup-session",
-            "2",
             "--force",
         ]
     )
@@ -126,3 +111,17 @@ def test_run_case_cli_writes_aim_masks_for_aim_input(tmp_path):
     assert rc == 0
     assert (tmp_path / "aim-out" / "voidspace_large_mask.AIM").is_file()
     assert (tmp_path / "aim-out" / "voidspace_all_mask.AIM").is_file()
+
+
+def test_run_case_help_uses_single_mask_argument_and_no_study_metadata(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["run-case", "--help"])
+
+    assert exc_info.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--mask" in help_text
+    assert "--analysis-mask" not in help_text
+    assert "--periosteal-mask" not in help_text
+    assert "--subject" not in help_text
+    assert "--session" not in help_text
+    assert "--site" not in help_text

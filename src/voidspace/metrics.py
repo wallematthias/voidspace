@@ -17,7 +17,7 @@ def measure_voidspace(
     void_mask: np.ndarray,
     total_mask: np.ndarray,
     spacing_mm: tuple[float, float, float],
-    analysis_mask: np.ndarray | None = None,
+    mask: np.ndarray | None = None,
     connectivity: int = 3,
 ) -> VoidspaceMetrics:
     void_mask = np.asarray(void_mask, dtype=bool)
@@ -26,11 +26,10 @@ def measure_voidspace(
         raise ValueError("void_mask and total_mask must be 3D arrays")
     _validate_same_shape(void_mask, total_mask)
 
-    analysis_masked = analysis_mask is not None
-    if analysis_mask is not None:
-        analysis_mask = np.asarray(analysis_mask, dtype=bool)
-        _validate_same_shape(void_mask, analysis_mask)
-        total = total_mask & analysis_mask
+    if mask is not None:
+        mask = np.asarray(mask, dtype=bool)
+        _validate_same_shape(void_mask, mask)
+        total = total_mask & mask
     else:
         total = total_mask
 
@@ -49,6 +48,4 @@ def measure_voidspace(
         vstv_percent=vstv,
         component_count=int(component_count),
         projected_area_mm2=projected_area,
-        metadata={"analysis_masked": analysis_masked},
     )
-

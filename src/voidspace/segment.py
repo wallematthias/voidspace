@@ -27,19 +27,19 @@ def _validate_same_shape(*arrays: np.ndarray) -> None:
 
 def segment_voidspace(
     segmentation: np.ndarray,
-    periosteal_mask: np.ndarray | None,
     spacing_mm: tuple[float, float, float],
+    mask: np.ndarray | None = None,
     parameters: VoidspaceParameters | None = None,
 ) -> VoidspaceMasks:
     params = parameters or VoidspaceParameters.xtremectii_defaults()
     bone = _validate_3d("segmentation", segmentation)
-    if periosteal_mask is None:
+    if mask is None:
         domain = np.ones_like(bone, dtype=bool)
         domain_source = "segmentation_border_background"
     else:
-        domain = _validate_3d("periosteal_mask", periosteal_mask)
+        domain = _validate_3d("mask", mask)
         _validate_same_shape(bone, domain)
-        domain_source = "periosteal_mask"
+        domain_source = "mask"
 
     bone_in_domain = remove_small_components(
         bone & domain,
@@ -48,7 +48,7 @@ def segment_voidspace(
     )
     closing_fp = ellipsoid_footprint(params.closing_radius_mm, spacing_mm)
     filled_bone = ndi.binary_closing(bone_in_domain, structure=closing_fp) & domain
-    if periosteal_mask is None:
+    if mask is None:
         interior_background = remove_border_connected_components(
             ~filled_bone,
             connectivity=params.connectivity,

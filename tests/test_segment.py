@@ -29,7 +29,7 @@ def test_segment_voidspace_finds_large_internal_cavity():
         void_speckle_min_voxels=2,
     )
 
-    result = segment_voidspace(bone, peri, (0.061, 0.061, 0.061), params)
+    result = segment_voidspace(bone, (0.061, 0.061, 0.061), mask=peri, parameters=params)
 
     assert result.all_void[cavity].any()
     assert result.large_void[cavity].any()
@@ -48,7 +48,7 @@ def test_segment_voidspace_does_not_create_void_outside_periosteal_mask():
         void_speckle_min_voxels=1,
     )
 
-    result = segment_voidspace(bone, peri, (0.061, 0.061, 0.061), params)
+    result = segment_voidspace(bone, (0.061, 0.061, 0.061), mask=peri, parameters=params)
 
     assert not result.all_void[~peri].any()
 
@@ -63,7 +63,7 @@ def test_segment_voidspace_derives_internal_domain_without_periosteal_mask():
         void_speckle_min_voxels=1,
     )
 
-    result = segment_voidspace(bone, None, (0.061, 0.061, 0.061), params)
+    result = segment_voidspace(bone, (0.061, 0.061, 0.061), parameters=params)
 
     assert result.metadata["domain_source"] == "segmentation_border_background"
     assert result.large_void[cavity].any()

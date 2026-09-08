@@ -9,16 +9,16 @@ from voidspace.morphology import voxel_volume_mm3
 def classify_voidspace_change(
     baseline_void: np.ndarray,
     followup_void: np.ndarray,
-    analysis_mask: np.ndarray | None = None,
+    mask: np.ndarray | None = None,
 ) -> VoidspaceChangeMasks:
     baseline = np.asarray(baseline_void, dtype=bool)
     followup = np.asarray(followup_void, dtype=bool)
     if baseline.shape != followup.shape:
         raise ValueError("baseline_void and followup_void must have the same shape")
-    if analysis_mask is not None:
-        mask = np.asarray(analysis_mask, dtype=bool)
+    if mask is not None:
+        mask = np.asarray(mask, dtype=bool)
         if mask.shape != baseline.shape:
-            raise ValueError("analysis_mask must match void mask shape")
+            raise ValueError("mask must match void mask shape")
         baseline = baseline & mask
         followup = followup & mask
 
@@ -43,4 +43,3 @@ def measure_voidspace_change(
         contracted_volume_mm3=contracted,
         net_change_volume_mm3=expanded - contracted,
     )
-
