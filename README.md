@@ -94,3 +94,20 @@ result = compare(
 )
 print(result.metrics.net_change_volume_mm3)
 ```
+
+## Citation
+
+For cross-sectional voidspace analysis, cite:
+
+Whittier DE, Burt LA, Boyd SK. A new approach for quantifying localized bone
+loss by measuring void spaces. Bone. 2021 Feb;143:115785.
+doi: [10.1016/j.bone.2020.115785](https://doi.org/10.1016/j.bone.2020.115785).
+Epub 2020 Dec 2. PMID: 33278655.
+
+For dynamic voidspace analysis, cite:
+
+Whittier DE, Walle M, Atkins PR, Collins CJ, Zumstein MA, Christen P, Lippuner
+K, Müller R. Structural alterations during fracture healing lead to void spaces
+developing in surrounding bone microarchitecture. Journal of Bone and Mineral
+Research. 2025 Jun;40(6):791-798.
+doi: [10.1093/jbmr/zjaf046](https://doi.org/10.1093/jbmr/zjaf046).
