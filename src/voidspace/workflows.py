@@ -11,7 +11,7 @@ from voidspace import (
     measure_voidspace_change,
     segment_voidspace,
 )
-from voidspace.io import read_mask, write_mask_like, write_metrics_csv
+from voidspace.io import AimReference, read_mask, write_mask_like, write_metrics_csv
 
 
 def _metric_row(metrics, **context):
@@ -47,6 +47,10 @@ def _parameters_from_kwargs(**kwargs) -> VoidspaceParameters:
     return VoidspaceParameters(**values)
 
 
+def _mask_extension(reference) -> str:
+    return ".AIM" if isinstance(reference, AimReference) else ".nii.gz"
+
+
 def run_voidspace_case(
     *,
     segmentation_path: Path | str,
@@ -62,8 +66,10 @@ def run_voidspace_case(
     force: bool = False,
 ) -> dict[str, Path]:
     output_dir = Path(output_dir)
-    large_path = output_dir / "voidspace_large_mask.nii.gz"
-    all_path = output_dir / "voidspace_all_mask.nii.gz"
+    segmentation, spacing, reference = read_mask(segmentation_path)
+    mask_extension = _mask_extension(reference)
+    large_path = output_dir / f"voidspace_large_mask{mask_extension}"
+    all_path = output_dir / f"voidspace_all_mask{mask_extension}"
     measurements_path = output_dir / "voidspace_measurements.csv"
     masked_measurements_path = output_dir / "voidspace_analysis_masked_measurements.csv"
 
@@ -77,13 +83,12 @@ def run_voidspace_case(
     if measurements_path.exists() and large_path.exists() and not force:
         return outputs
 
-    segmentation, spacing, reference = read_mask(segmentation_path)
     if periosteal_mask_path is not None:
         periosteal_mask, peri_spacing, _peri_reference = read_mask(periosteal_mask_path)
         if peri_spacing != spacing or periosteal_mask.shape != segmentation.shape:
             raise ValueError("periosteal mask must be in the same space as segmentation")
     else:
-        periosteal_mask = np.ones_like(segmentation, dtype=bool)
+        periosteal_mask = None
 
     params = parameters or VoidspaceParameters.xtremectii_defaults()
     masks = segment_voidspace(segmentation, periosteal_mask, spacing, params)
@@ -97,7 +102,8 @@ def run_voidspace_case(
         "space": space,
         "reference_session_id": reference_session_id,
     }
-    metrics = measure_voidspace(masks.large_void, periosteal_mask, spacing, connectivity=params.connectivity)
+    total_mask = periosteal_mask if periosteal_mask is not None else (masks.filled_bone | masks.all_void)
+    metrics = measure_voidspace(masks.large_void, total_mask, spacing, connectivity=params.connectivity)
     write_metrics_csv(measurements_path, [_metric_row(metrics, **context)])
 
     if analysis_mask_path is not None:
@@ -106,7 +112,7 @@ def run_voidspace_case(
             raise ValueError("analysis mask must be in the same space as segmentation")
         masked_metrics = measure_voidspace(
             masks.large_void,
-            periosteal_mask,
+            total_mask,
             spacing,
             analysis_mask=analysis_mask,
             connectivity=params.connectivity,
@@ -129,9 +135,11 @@ def run_voidspace_change_case(
     force: bool = False,
 ) -> dict[str, Path]:
     output_dir = Path(output_dir)
-    stable_path = output_dir / "voidspace_stable_mask.nii.gz"
-    expanded_path = output_dir / "voidspace_expanded_mask.nii.gz"
-    contracted_path = output_dir / "voidspace_contracted_mask.nii.gz"
+    baseline, spacing, reference = read_mask(baseline_void_path)
+    mask_extension = _mask_extension(reference)
+    stable_path = output_dir / f"voidspace_stable_mask{mask_extension}"
+    expanded_path = output_dir / f"voidspace_expanded_mask{mask_extension}"
+    contracted_path = output_dir / f"voidspace_contracted_mask{mask_extension}"
     measurements_path = output_dir / "voidspace_change_measurements.csv"
     outputs = {
         "stable_mask": stable_path,
@@ -142,7 +150,6 @@ def run_voidspace_change_case(
     if measurements_path.exists() and expanded_path.exists() and not force:
         return outputs
 
-    baseline, spacing, reference = read_mask(baseline_void_path)
     followup, followup_spacing, _followup_reference = read_mask(followup_void_path)
     if followup_spacing != spacing or followup.shape != baseline.shape:
         raise ValueError("baseline and followup void masks must already be aligned")
@@ -174,4 +181,3 @@ def run_voidspace_change_case(
         ],
     )
     return outputs
-

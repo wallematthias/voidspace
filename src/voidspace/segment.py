@@ -4,7 +4,12 @@ import numpy as np
 from scipy import ndimage as ndi
 
 from voidspace.models import VoidspaceMasks, VoidspaceParameters
-from voidspace.morphology import ellipsoid_footprint, min_voxels_for_volume, remove_small_components
+from voidspace.morphology import (
+    ellipsoid_footprint,
+    min_voxels_for_volume,
+    remove_border_connected_components,
+    remove_small_components,
+)
 
 
 def _validate_3d(name: str, array: np.ndarray) -> np.ndarray:
@@ -30,7 +35,7 @@ def segment_voidspace(
     bone = _validate_3d("segmentation", segmentation)
     if periosteal_mask is None:
         domain = np.ones_like(bone, dtype=bool)
-        domain_source = "image_extent"
+        domain_source = "segmentation_border_background"
     else:
         domain = _validate_3d("periosteal_mask", periosteal_mask)
         _validate_same_shape(bone, domain)
@@ -43,6 +48,13 @@ def segment_voidspace(
     )
     closing_fp = ellipsoid_footprint(params.closing_radius_mm, spacing_mm)
     filled_bone = ndi.binary_closing(bone_in_domain, structure=closing_fp) & domain
+    if periosteal_mask is None:
+        interior_background = remove_border_connected_components(
+            ~filled_bone,
+            connectivity=params.connectivity,
+        )
+        domain = filled_bone | interior_background
+        filled_bone = filled_bone & domain
     candidate_void = domain & ~filled_bone
 
     if params.boundary_erosion_radius_mm > 0:
@@ -71,4 +83,3 @@ def segment_voidspace(
             "domain_source": domain_source,
         },
     )
-

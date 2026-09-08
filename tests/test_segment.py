@@ -52,3 +52,19 @@ def test_segment_voidspace_does_not_create_void_outside_periosteal_mask():
 
     assert not result.all_void[~peri].any()
 
+
+def test_segment_voidspace_derives_internal_domain_without_periosteal_mask():
+    bone, peri, cavity = _solid_cube_with_cavity(size=21, cavity_radius=2)
+    params = VoidspaceParameters(
+        closing_radius_mm=0.061,
+        boundary_erosion_radius_mm=0.0,
+        min_large_void_volume_mm3=0.001,
+        bone_speckle_min_voxels=1,
+        void_speckle_min_voxels=1,
+    )
+
+    result = segment_voidspace(bone, None, (0.061, 0.061, 0.061), params)
+
+    assert result.metadata["domain_source"] == "segmentation_border_background"
+    assert result.large_void[cavity].any()
+    assert not result.all_void[~peri].any()

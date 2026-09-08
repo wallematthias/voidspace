@@ -6,6 +6,10 @@ Spacing-aware voidspace analysis for HR-pQCT segmentations.
 scans, create common regions, or resample images. It expects inputs that are
 already in the image space to analyze.
 
+The command line interface reads common SimpleITK image formats and Scanco AIM
+masks. AIM masks are read in native scaling, interpreted as foreground where
+nonzero, and written back as native binary AIM masks using the input geometry.
+
 ## Workflows
 
 - Cross-sectional: pass a segmented bone image.
@@ -15,6 +19,11 @@ already in the image space to analyze.
 - Registered: pass an already registered segmentation and optional registered
   analysis mask.
 - Dynamic change: pass already aligned baseline and follow-up voidspace masks.
+
+When no periosteal mask is supplied, the segmentation-only workflow estimates
+the analysis domain from the closed segmentation by excluding background
+connected to the image border. Supplying an explicit periosteal/common-region
+mask remains preferred when that contour is available.
 
 ## Algorithm
 
@@ -44,7 +53,7 @@ image spacing.
 
 ```bash
 voidspace run-case \
-  --segmentation seg.nii.gz \
+  --segmentation seg.AIM \
   --analysis-mask common_region.nii.gz \
   --output-dir derivatives/VoidSpace/sub-S1/site-tibia/ses-1 \
   --subject S1 \

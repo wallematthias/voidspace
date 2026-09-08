@@ -9,15 +9,17 @@ from voidspace.models import (
 )
 from voidspace.segment import segment_voidspace
 
+__version__ = "0.1.0"
+
 __all__ = [
     "VoidspaceChangeMasks",
     "VoidspaceChangeMetrics",
     "VoidspaceMasks",
     "VoidspaceMetrics",
     "VoidspaceParameters",
+    "__version__",
     "classify_voidspace_change",
     "measure_voidspace",
     "measure_voidspace_change",
     "segment_voidspace",
 ]
-
