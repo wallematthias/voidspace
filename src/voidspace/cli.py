@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Sequence
 
 from voidspace.models import VoidspaceParameters
-from voidspace.workflows import compare, run_case
+from voidspace.workflows import analyze_maps, compare, intersect_masks, run_case
 
 
 def _parameters_from_args(args: argparse.Namespace) -> VoidspaceParameters:
@@ -64,6 +64,20 @@ def build_parser() -> argparse.ArgumentParser:
     _add_parameter_arguments(run_case)
     run_case.set_defaults(func=_cmd_run_case)
 
+    analyze = subparsers.add_parser("analyze-maps", help="Measure existing voidspace maps inside a mask.")
+    analyze.add_argument("--large-void", type=Path, required=True)
+    analyze.add_argument("--all-void", type=Path, required=True)
+    analyze.add_argument(
+        "--mask",
+        type=Path,
+        required=True,
+        help="Analysis-domain mask aligned with both voidspace maps.",
+    )
+    analyze.add_argument("--output-dir", type=Path, required=True)
+    analyze.add_argument("--connectivity", type=int, choices=(1, 2, 3), default=VoidspaceParameters.xtremectii_defaults().connectivity)
+    analyze.add_argument("--force", action="store_true")
+    analyze.set_defaults(func=_cmd_analyze_maps)
+
     compare = subparsers.add_parser("compare", help="Compare already aligned voidspace masks.")
     compare.add_argument("--baseline-void", type=Path, required=True)
     compare.add_argument("--followup-void", type=Path, required=True)
@@ -75,6 +89,18 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--output-dir", type=Path, required=True)
     compare.add_argument("--force", action="store_true")
     compare.set_defaults(func=_cmd_compare)
+
+    intersect = subparsers.add_parser("intersect-masks", help="Write the intersection of aligned masks.")
+    intersect.add_argument(
+        "--mask",
+        type=Path,
+        required=True,
+        action="append",
+        help="Mask to include in the intersection. Pass at least two.",
+    )
+    intersect.add_argument("--output", type=Path, required=True)
+    intersect.add_argument("--force", action="store_true")
+    intersect.set_defaults(func=_cmd_intersect_masks)
 
     return parser
 
@@ -90,6 +116,18 @@ def _cmd_run_case(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_analyze_maps(args: argparse.Namespace) -> int:
+    analyze_maps(
+        large_void_path=args.large_void,
+        all_void_path=args.all_void,
+        mask_path=args.mask,
+        output_dir=args.output_dir,
+        connectivity=args.connectivity,
+        force=args.force,
+    )
+    return 0
+
+
 def _cmd_compare(args: argparse.Namespace) -> int:
     compare(
         baseline_void_path=args.baseline_void,
@@ -98,6 +136,11 @@ def _cmd_compare(args: argparse.Namespace) -> int:
         output_dir=args.output_dir,
         force=args.force,
     )
+    return 0
+
+
+def _cmd_intersect_masks(args: argparse.Namespace) -> int:
+    intersect_masks(args.mask, output_path=args.output, force=args.force)
     return 0
 
 

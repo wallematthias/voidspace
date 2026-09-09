@@ -113,14 +113,14 @@ def _write_aim_mask(mask: np.ndarray, reference: AimReference, path: Path) -> No
 def write_mask_like(mask: np.ndarray, reference: ImageReference, path: Path | str) -> Path:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    if isinstance(reference, AimReference) or is_aim_path(output):
+    if is_aim_path(output):
         if not isinstance(reference, AimReference):
             raise ValueError("AIM output requires an AIM reference image.")
         _write_aim_mask(mask, reference, output)
         return output
 
     image = sitk.GetImageFromArray(np.asarray(mask, dtype=np.uint8))
-    image.CopyInformation(reference)
+    image.CopyInformation(reference.image if isinstance(reference, AimReference) else reference)
     sitk.WriteImage(image, str(output))
     return output
 

@@ -59,6 +59,14 @@ voidspace run-case \
 ```
 
 ```bash
+voidspace analyze-maps \
+  --large-void voidspace-out/voidspace_large_mask.AIM \
+  --all-void voidspace-out/voidspace_all_mask.AIM \
+  --mask common_region.AIM \
+  --output-dir voidspace-common-region
+```
+
+```bash
 voidspace compare \
   --baseline-void baseline_voidspace_large_mask.AIM \
   --followup-void followup_voidspace_large_mask.AIM \
@@ -66,8 +74,8 @@ voidspace compare \
   --output-dir voidspace-change
 ```
 
-`--mask` is optional for both commands. Use `--force` to overwrite existing
-outputs.
+`--mask` is optional for `run-case` and `compare`, and required for
+`analyze-maps`. Use `--force` to overwrite existing outputs.
 
 ## Python
 
@@ -93,6 +101,18 @@ result = compare(
     output_dir="voidspace-change",
 )
 print(result.metrics.net_change_volume_mm3)
+```
+
+```python
+from voidspace import analyze_maps
+
+result = analyze_maps(
+    large_void_path="voidspace-out/voidspace_large_mask.AIM",
+    all_void_path="voidspace-out/voidspace_all_mask.AIM",
+    mask_path="common_region.AIM",
+    output_dir="voidspace-common-region",
+)
+print(result.metrics.vstv_percent)
 ```
 
 ## Citation

@@ -83,8 +83,69 @@ def test_compare_cli_writes_expanded_and_contracted_masks(tmp_path):
     )
 
     assert rc == 0
+    assert (tmp_path / "change" / "voidspace_quiescent_mask.nii.gz").is_file()
     assert (tmp_path / "change" / "voidspace_expanded_mask.nii.gz").is_file()
     assert (tmp_path / "change" / "voidspace_contracted_mask.nii.gz").is_file()
+
+
+def test_intersect_masks_cli_writes_combined_mask(tmp_path):
+    full = np.ones((3, 3, 3), dtype=bool)
+    full[2, :, :] = False
+    common = np.zeros_like(full)
+    common[:, 1:, :] = True
+    _write_mask(tmp_path / "full.nii.gz", full)
+    _write_mask(tmp_path / "common.nii.gz", common)
+
+    rc = main(
+        [
+            "intersect-masks",
+            "--mask",
+            str(tmp_path / "full.nii.gz"),
+            "--mask",
+            str(tmp_path / "common.nii.gz"),
+            "--output",
+            str(tmp_path / "analysis_mask.nii.gz"),
+            "--force",
+        ]
+    )
+
+    assert rc == 0
+    result = sitk.GetArrayFromImage(sitk.ReadImage(str(tmp_path / "analysis_mask.nii.gz"))).astype(bool)
+    assert np.array_equal(result, full & common)
+
+
+def test_analyze_maps_cli_writes_masked_copies_and_measurements(tmp_path):
+    all_void = np.ones((3, 3, 3), dtype=bool)
+    large_void = np.zeros_like(all_void)
+    large_void[0, 0, 0] = True
+    large_void[2, 2, 2] = True
+    mask = np.zeros_like(all_void)
+    mask[0, 0, 0] = True
+    mask[0, 0, 1] = True
+    _write_mask(tmp_path / "all.nii.gz", all_void)
+    _write_mask(tmp_path / "large.nii.gz", large_void)
+    _write_mask(tmp_path / "mask.nii.gz", mask)
+
+    rc = main(
+        [
+            "analyze-maps",
+            "--large-void",
+            str(tmp_path / "large.nii.gz"),
+            "--all-void",
+            str(tmp_path / "all.nii.gz"),
+            "--mask",
+            str(tmp_path / "mask.nii.gz"),
+            "--output-dir",
+            str(tmp_path / "masked"),
+        ]
+    )
+
+    assert rc == 0
+    assert (tmp_path / "masked" / "voidspace_large_mask.nii.gz").is_file()
+    assert (tmp_path / "masked" / "voidspace_all_mask.nii.gz").is_file()
+    with (tmp_path / "masked" / "voidspace_measurements.csv").open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    assert rows[0]["VS.V"] == "1.0"
 
 
 def test_run_case_cli_writes_aim_masks_for_aim_input(tmp_path):
@@ -125,3 +186,15 @@ def test_run_case_help_uses_single_mask_argument_and_no_study_metadata(capsys):
     assert "--subject" not in help_text
     assert "--session" not in help_text
     assert "--site" not in help_text
+
+
+def test_analyze_maps_help_uses_existing_map_inputs(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["analyze-maps", "--help"])
+
+    assert exc_info.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--large-void" in help_text
+    assert "--all-void" in help_text
+    assert "--mask" in help_text
+    assert "--segmentation" not in help_text

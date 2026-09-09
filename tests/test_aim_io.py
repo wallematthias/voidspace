@@ -1,5 +1,6 @@
 import numpy as np
 import py_aimio
+import SimpleITK as sitk
 
 from voidspace.io import is_aim_path, read_mask, write_mask_like
 
@@ -56,3 +57,18 @@ def test_write_mask_like_round_trips_scanco_aim(tmp_path):
         0.0820000022649765,
     )
     assert np.array_equal(roundtrip, subset)
+
+
+def test_write_mask_like_can_write_nifti_from_scanco_aim_reference(tmp_path):
+    source = np.zeros((3, 4, 5), dtype=np.int8)
+    source[1, 2, 3] = 127
+    input_path = tmp_path / "seg.AIM"
+    _write_aim(input_path, source)
+    segmentation, _spacing, reference = read_mask(input_path)
+
+    output = write_mask_like(segmentation, reference, tmp_path / "analysis_mask.nii.gz")
+
+    image = sitk.ReadImage(str(output))
+    roundtrip = sitk.GetArrayFromImage(image).astype(bool)
+    assert image.GetSize() == (5, 4, 3)
+    assert np.array_equal(roundtrip, segmentation)
