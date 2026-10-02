@@ -2,6 +2,23 @@ import numpy as np
 import SimpleITK as sitk
 
 from voidspace import VoidspaceParameters, analyze_maps, compare, intersect_masks, run_case
+import pytest
+
+
+@pytest.mark.parametrize("size, origin", [(3, (1, 1, 1)), (5, (1, 0, 0))])
+def test_run_case_places_analysis_mask_on_segmentation_grid(tmp_path, size, origin):
+    segmentation = np.zeros((5, 5, 5), dtype=np.uint8)
+    _write_mask(tmp_path / "seg.nii.gz", segmentation)
+    mask_image = sitk.GetImageFromArray(np.ones((size,) * 3, dtype=np.uint8))
+    mask_image.SetOrigin(origin)
+    sitk.WriteImage(mask_image, str(tmp_path / "domain.nii.gz"))
+    result = run_case(segmentation_path=tmp_path / "seg.nii.gz",
+                      mask_path=tmp_path / "domain.nii.gz", output_dir=tmp_path / "out",
+                      parameters=VoidspaceParameters(closing_radius_mm=0, boundary_erosion_radius_mm=0,
+                          min_large_void_volume_mm3=0, bone_speckle_min_voxels=1, void_speckle_min_voxels=1))
+    assert result.metrics.total_volume_mm3 == (27 if size == 3 else 100)
+    output = sitk.GetArrayFromImage(sitk.ReadImage(str(result.all_mask_path)))
+    assert not output[:, :, 0].any()
 
 
 def _write_mask(path, array):
@@ -119,3 +136,28 @@ def test_intersect_masks_resamples_cropped_mask_to_reference_grid(tmp_path):
     expected[1:4, 1:4, 1:4] = True
     assert image.GetSize() == (5, 5, 5)
     assert np.array_equal(result, expected)
+
+
+def test_analyze_maps_honors_direction_with_matching_sizes_and_origins(tmp_path):
+    full = np.ones((5, 5, 5), dtype=bool)
+    _write_mask(tmp_path / "all.nii.gz", full)
+    _write_mask(tmp_path / "large.nii.gz", full)
+    mask = sitk.GetImageFromArray(full.astype(np.uint8))
+    mask.SetDirection((-1, 0, 0, 0, 1, 0, 0, 0, 1))
+    sitk.WriteImage(mask, str(tmp_path / "domain.nii.gz"))
+    result = analyze_maps(large_void_path=tmp_path / "large.nii.gz", all_void_path=tmp_path / "all.nii.gz",
+                          mask_path=tmp_path / "domain.nii.gz", output_dir=tmp_path / "out")
+    assert result.metrics.total_volume_mm3 == 25
+
+
+def test_compare_places_cropped_maps_in_same_physical_space(tmp_path):
+    baseline = np.zeros((5, 5, 5), dtype=bool)
+    baseline[2, 2, 2] = True
+    _write_mask(tmp_path / "baseline.nii.gz", baseline)
+    cropped = sitk.GetImageFromArray(np.ones((1, 1, 1), dtype=np.uint8))
+    cropped.SetOrigin((2, 2, 2))
+    sitk.WriteImage(cropped, str(tmp_path / "followup.nii.gz"))
+    result = compare(baseline_void_path=tmp_path / "baseline.nii.gz",
+                     followup_void_path=tmp_path / "followup.nii.gz", output_dir=tmp_path / "out")
+    assert result.metrics.stable_volume_mm3 == 1
+    assert result.metrics.expanded_volume_mm3 == result.metrics.contracted_volume_mm3 == 0

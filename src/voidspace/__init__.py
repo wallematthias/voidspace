@@ -12,7 +12,7 @@ from voidspace.models import (
 from voidspace.segment import segment_voidspace
 from voidspace.workflows import analyze_maps, compare, intersect_masks, run_case
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = [
     "VoidspaceChangeMasks",

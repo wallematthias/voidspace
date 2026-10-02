@@ -66,7 +66,7 @@ def remove_small_components(mask: np.ndarray, min_voxels: int, connectivity: int
     return keep[labels]
 
 
-def remove_border_connected_components(mask: np.ndarray, connectivity: int = 3) -> np.ndarray:
+def remove_border_connected_components(mask: np.ndarray, connectivity: int = 3, *, axes=(0, 1, 2)) -> np.ndarray:
     mask = np.asarray(mask, dtype=bool)
     if mask.ndim != 3:
         raise ValueError("mask must be a 3D array")
@@ -75,12 +75,10 @@ def remove_border_connected_components(mask: np.ndarray, connectivity: int = 3) 
     if count == 0:
         return np.zeros_like(mask, dtype=bool)
 
-    border_labels = set(np.unique(labels[0, :, :]))
-    border_labels.update(np.unique(labels[-1, :, :]))
-    border_labels.update(np.unique(labels[:, 0, :]))
-    border_labels.update(np.unique(labels[:, -1, :]))
-    border_labels.update(np.unique(labels[:, :, 0]))
-    border_labels.update(np.unique(labels[:, :, -1]))
+    border_labels = set()
+    for axis in axes:
+        border_labels.update(np.unique(np.take(labels, 0, axis=axis)))
+        border_labels.update(np.unique(np.take(labels, -1, axis=axis)))
     border_labels.discard(0)
     remove = np.zeros(count + 1, dtype=bool)
     if border_labels:

@@ -3,6 +3,33 @@ import numpy as np
 from voidspace import VoidspaceParameters, segment_voidspace
 
 
+def _open_tube():
+    yy, xx = np.indices((65, 65))
+    radius = np.sqrt((xx - 32) ** 2 + (yy - 32) ** 2)
+    full = np.broadcast_to(radius < 25, (31, 65, 65)).copy()
+    cavity = np.broadcast_to(radius < 15, full.shape)
+    params = VoidspaceParameters(closing_radius_mm=1, boundary_erosion_radius_mm=1,
+                                min_large_void_volume_mm3=10,
+                                bone_speckle_min_voxels=1, void_speckle_min_voxels=1)
+    return full & ~cavity, full, params
+
+
+def test_open_end_void_survives_without_explicit_domain():
+    bone, full, params = _open_tube()
+    result = segment_voidspace(bone, (1, 1, 1), parameters=params)
+    assert result.large_void[:, 32, 32].all()
+    assert not result.all_void[~full].any()
+    assert not np.any(result.large_void & ~result.all_void)
+
+
+def test_end_slices_match_interior_for_uniform_tube():
+    bone, full, params = _open_tube()
+    result = segment_voidspace(bone, (1, 1, 1), mask=full, parameters=params)
+    assert np.array_equal(result.filled_bone[0], result.filled_bone[15])
+    assert np.array_equal(result.all_void[0], result.all_void[15])
+    assert np.array_equal(result.all_void[-1], result.all_void[15])
+
+
 def _solid_cube_with_cavity(size=31, cavity_radius=4):
     bone = np.zeros((size, size, size), dtype=bool)
     bone[4:-4, 4:-4, 4:-4] = True
@@ -65,6 +92,6 @@ def test_segment_voidspace_derives_internal_domain_without_periosteal_mask():
 
     result = segment_voidspace(bone, (0.061, 0.061, 0.061), parameters=params)
 
-    assert result.metadata["domain_source"] == "segmentation_border_background"
+    assert result.metadata["domain_source"] == "segmentation_lateral_background"
     assert result.large_void[cavity].any()
     assert not result.all_void[~peri].any()

@@ -34,7 +34,10 @@ def _reference_image(reference) -> sitk.Image:
 def _array_on_reference_grid(array, source_reference, target_reference) -> np.ndarray:
     source_image = _reference_image(source_reference)
     target_image = _reference_image(target_reference)
-    if source_image.GetSize() == target_image.GetSize() and source_image.GetOrigin() == target_image.GetOrigin():
+    if source_image.GetSize() == target_image.GetSize() and all(
+        np.allclose(getattr(source_image, getter)(), getattr(target_image, getter)(), rtol=0, atol=1e-6)
+        for getter in ("GetOrigin", "GetSpacing", "GetDirection")
+    ):
         return np.asarray(array, dtype=bool)
     image = sitk.GetImageFromArray(np.asarray(array, dtype=np.uint8))
     image.CopyInformation(source_image)
@@ -98,9 +101,8 @@ def run_case(
         raise FileExistsError(f"output already exists: {existing_outputs[0]}")
 
     if mask_path is not None:
-        domain_mask, mask_spacing, _mask_reference = read_mask(mask_path)
-        if mask_spacing != spacing or domain_mask.shape != segmentation.shape:
-            raise ValueError("mask must be in the same space as segmentation")
+        domain_mask, _mask_spacing, mask_reference = read_mask(mask_path)
+        domain_mask = _array_on_reference_grid(domain_mask, mask_reference, reference)
     else:
         domain_mask = None
 
@@ -137,12 +139,10 @@ def analyze_maps(
     if existing_outputs and not force:
         raise FileExistsError(f"output already exists: {existing_outputs[0]}")
 
-    all_void, all_spacing, _all_reference = read_mask(all_void_path)
-    if all_spacing != spacing or all_void.shape != large_void.shape:
-        raise ValueError("large and all void masks must be in the same space")
-    domain_mask, mask_spacing, _mask_reference = read_mask(mask_path)
-    if mask_spacing != spacing or domain_mask.shape != large_void.shape:
-        raise ValueError("mask must be aligned with the void masks")
+    all_void, _all_spacing, all_reference = read_mask(all_void_path)
+    all_void = _array_on_reference_grid(all_void, all_reference, reference)
+    domain_mask, _mask_spacing, mask_reference = read_mask(mask_path)
+    domain_mask = _array_on_reference_grid(domain_mask, mask_reference, reference)
 
     masked_large_void = large_void & domain_mask
     masked_all_void = all_void & domain_mask
@@ -177,15 +177,13 @@ def compare(
     if existing_outputs and not force:
         raise FileExistsError(f"output already exists: {existing_outputs[0]}")
 
-    followup, followup_spacing, _followup_reference = read_mask(followup_void_path)
-    if followup_spacing != spacing or followup.shape != baseline.shape:
-        raise ValueError("baseline and followup void masks must already be aligned")
+    followup, _followup_spacing, followup_reference = read_mask(followup_void_path)
+    followup = _array_on_reference_grid(followup, followup_reference, reference)
 
     domain_mask = None
     if mask_path is not None:
-        domain_mask, mask_spacing, _mask_reference = read_mask(mask_path)
-        if mask_spacing != spacing or domain_mask.shape != baseline.shape:
-            raise ValueError("mask must be aligned with the void masks")
+        domain_mask, _mask_spacing, mask_reference = read_mask(mask_path)
+        domain_mask = _array_on_reference_grid(domain_mask, mask_reference, reference)
 
     change = classify_voidspace_change(baseline, followup, mask=domain_mask)
     write_mask_like(change.stable, reference, stable_path)

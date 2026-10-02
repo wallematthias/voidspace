@@ -25,6 +25,17 @@ def _validate_same_shape(*arrays: np.ndarray) -> None:
         raise ValueError(f"all masks must have the same shape, got {sorted(shapes)}")
 
 
+def _continue_scan_ends(mask, footprint, operation):
+    """Continue the endpoint slices, without continuing lateral exterior background."""
+    radius = footprint.shape[0] // 2
+    if radius == 0:
+        return operation(mask, structure=footprint, border_value=0)
+    # Closing contains a dilation and an erosion; retain both operations' support.
+    padding = 2 * radius
+    padded = np.pad(mask, ((padding, padding), (0, 0), (0, 0)), mode="edge")
+    return operation(padded, structure=footprint, border_value=0)[padding:-padding]
+
+
 def segment_voidspace(
     segmentation: np.ndarray,
     spacing_mm: tuple[float, float, float],
@@ -35,7 +46,7 @@ def segment_voidspace(
     bone = _validate_3d("segmentation", segmentation)
     if mask is None:
         domain = np.ones_like(bone, dtype=bool)
-        domain_source = "segmentation_border_background"
+        domain_source = "segmentation_lateral_background"
     else:
         domain = _validate_3d("mask", mask)
         _validate_same_shape(bone, domain)
@@ -47,11 +58,12 @@ def segment_voidspace(
         connectivity=params.connectivity,
     )
     closing_fp = ellipsoid_footprint(params.closing_radius_mm, spacing_mm)
-    filled_bone = ndi.binary_closing(bone_in_domain, structure=closing_fp) & domain
+    filled_bone = _continue_scan_ends(bone_in_domain, closing_fp, ndi.binary_closing) & domain
     if mask is None:
         interior_background = remove_border_connected_components(
             ~filled_bone,
             connectivity=params.connectivity,
+            axes=(1, 2),
         )
         domain = filled_bone | interior_background
         filled_bone = filled_bone & domain
@@ -59,7 +71,7 @@ def segment_voidspace(
 
     if params.boundary_erosion_radius_mm > 0:
         erosion_fp = ellipsoid_footprint(params.boundary_erosion_radius_mm, spacing_mm)
-        candidate_void = ndi.binary_erosion(candidate_void, structure=erosion_fp, border_value=0)
+        candidate_void = _continue_scan_ends(candidate_void, erosion_fp, ndi.binary_erosion)
     candidate_void = candidate_void & domain
 
     all_void = remove_small_components(
@@ -81,5 +93,6 @@ def segment_voidspace(
             "min_large_void_volume_mm3": params.min_large_void_volume_mm3,
             "structuring_element": "spacing_aware_ellipsoid",
             "domain_source": domain_source,
+            "scan_end_policy": "edge_continuation",
         },
     )

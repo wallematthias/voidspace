@@ -3,8 +3,10 @@
 Spacing-aware voidspace analysis for HR-pQCT segmentations.
 
 `voidspace` is a standalone logic package. It does not segment bone, register
-scans, create common regions, or resample images. It expects inputs that are
-already in the image space to analyze.
+scans or create common regions. It expects inputs already in the same physical
+space. File workflows place cropped masks on the reference grid with
+nearest-neighbor resampling using origin, spacing, and direction; this does not
+estimate registration between scans.
 
 The command line interface reads common SimpleITK image formats and Scanco AIM
 masks. AIM masks are read in native scaling, interpreted as foreground where
@@ -22,8 +24,19 @@ nonzero, and written back as native binary AIM masks using the input geometry.
 
 When no periosteal mask is supplied, the segmentation-only workflow estimates
 the analysis domain from the closed segmentation by excluding background
-connected to the image border. Supplying an explicit mask remains preferred
-when that contour is available.
+connected to lateral (in-plane) image borders, not the two scan ends. Supplying
+an explicit full bone mask remains preferred, especially for breached cortex.
+
+Closing and erosion use edge continuation along the scan axis before cropping
+back to the acquired volume. This assumes the endpoint cross-sections continue
+beyond the scan, rather than treating acquisition ends as empty biological space.
+Physical morphology radii and volume thresholds are unchanged. This boundary
+policy is not a validation of exact scanner/IPL equivalence.
+
+All voidspace includes large voidspace: the large map is a size-filtered subset.
+For common-region reporting, compute maps on the full bone domain with `run-case`,
+then use `analyze-maps` to clip and measure without recomputing morphology at the
+common-region boundaries. Force-rerun old outputs to apply these corrections.
 
 ## Algorithm
 
