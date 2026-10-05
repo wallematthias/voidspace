@@ -69,8 +69,14 @@ def intersect_masks(
     intersection, spacing, reference = read_mask(paths[0])
     for path in paths[1:]:
         mask, mask_spacing, mask_reference = read_mask(path)
-        if mask_spacing != spacing:
-            raise ValueError("all masks must have the same spacing")
+        # AIM header quantization and NIfTI float storage can differ below 1 nm.
+        # Tolerate that rounding, but do not silently mix scan resolutions.
+        if not np.allclose(mask_spacing, spacing, rtol=0, atol=1e-6):
+            raise ValueError(
+                f"mask spacing mismatch (z, y, x; mm): {paths[0]} has {spacing}; "
+                f"{path} has {mask_spacing}. Expected the matching native-space "
+                "common region at the same scan resolution."
+            )
         mask = _array_on_reference_grid(mask, mask_reference, reference)
         if mask.shape != intersection.shape:
             raise ValueError("all masks must overlap the reference image space")

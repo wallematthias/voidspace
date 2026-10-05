@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5 - 2026-10-05
+
+- Accept AIM/NIfTI mask-spacing header rounding up to 0.000001 mm per axis when intersecting full masks with common regions, preserving physical placement and the reference grid.
+- Reject genuinely different mask resolutions with an error listing both paths and spacings.
+- Add regression tests for scanner header rounding and cropped-mask placement.
+
 ## 0.1.4 - 2026-10-02
 
 - Preserve large cavities connected to acquisition ends by excluding lateral background only when inferring a domain.

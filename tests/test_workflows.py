@@ -116,6 +116,47 @@ def test_intersect_masks_writes_boolean_intersection(tmp_path):
     assert np.array_equal(result, full & common)
 
 
+@pytest.mark.parametrize("shift", [0.0, 0.0607])
+@pytest.mark.parametrize("source_spacing, common_spacing", [
+    ((0.0607,) * 3, (float(np.float32(0.0607)),) * 3),
+    ((0.06069900095462799, 0.06069900095462799, 0.06069599837064743),
+     (0.06069965288043022, 0.06069965288043022, 0.06069643050432205)),
+])
+def test_intersect_masks_accepts_header_rounding_and_preserves_physical_placement(
+    tmp_path, shift, source_spacing, common_spacing,
+):
+    full = sitk.GetImageFromArray(np.ones((5, 5, 5), dtype=np.uint8))
+    full.SetSpacing(source_spacing)
+    sitk.WriteImage(full, str(tmp_path / "full.mha"))
+    common = sitk.GetImageFromArray(np.ones((3, 3, 3), dtype=np.uint8))
+    common.SetSpacing(common_spacing)
+    common.SetOrigin((shift,) * 3)
+    sitk.WriteImage(common, str(tmp_path / "common.nii.gz"))
+
+    output = intersect_masks(
+        [tmp_path / "full.mha", tmp_path / "common.nii.gz"],
+        output_path=tmp_path / "intersection.nii.gz",
+    )
+    image = sitk.ReadImage(str(output))
+    expected = np.zeros((5, 5, 5), dtype=bool)
+    start = 0 if shift == 0 else 1
+    expected[start:start + 3, start:start + 3, start:start + 3] = True
+    assert np.array_equal(sitk.GetArrayFromImage(image).astype(bool), expected)
+    assert np.allclose(image.GetSpacing(), source_spacing, rtol=0, atol=1e-8)
+
+
+def test_intersect_masks_reports_genuinely_different_resolution(tmp_path):
+    for name, spacing in [("full", 0.0607), ("common", 0.082)]:
+        image = sitk.GetImageFromArray(np.ones((3, 3, 3), dtype=np.uint8))
+        image.SetSpacing((spacing,) * 3)
+        sitk.WriteImage(image, str(tmp_path / f"{name}.mha"))
+    with pytest.raises(ValueError, match="spacing.*full.*common"):
+        intersect_masks(
+            [tmp_path / "full.mha", tmp_path / "common.mha"],
+            output_path=tmp_path / "intersection.nii.gz",
+        )
+
+
 def test_intersect_masks_resamples_cropped_mask_to_reference_grid(tmp_path):
     full = np.ones((5, 5, 5), dtype=bool)
     common = np.ones((3, 3, 3), dtype=bool)
